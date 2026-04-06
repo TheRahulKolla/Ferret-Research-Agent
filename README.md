@@ -37,7 +37,7 @@ venv\Scripts\activate
 
 **3. Install dependencies**
 ```bash
-pip install anthropic duckduckgo-search python-dotenv
+pip install -r requirements.txt
 ```
 
 **4. Add your API key**
