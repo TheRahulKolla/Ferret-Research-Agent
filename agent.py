@@ -7,10 +7,11 @@ Implements the ReAct loop:
 """
 
 import os
+import json
 import anthropic
 from dotenv import load_dotenv
 from tools import TOOL_DEFINITIONS, execute_tool
-
+from prompts import SYSTEM_PROMPT, DECOMPOSITION_PROMPT
 load_dotenv()
 
 client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
@@ -18,22 +19,23 @@ client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 # Haiku - fastest and cheapest Claude model
 MODEL = "claude-haiku-4-5-20251001"
 
-SYSTEM_PROMPT = """You are a research assistant agent. Your job is to research any topic thoroughly and produce a well-structured report.
+def query_planner (topic:str) -> list[str]:
+    """
+    Use claude to decompose a topic into 2-3 sub-queries. """
 
-You have access to these tools:
-- web_search: search the internet for information
-- save_report: save your final report to a file
-- read_file: read a previously saved file
-
-Your workflow:
-1. Break the topic into 2-3 focused search queries
-2. Search for each query and read the results carefully
-3. Synthesize everything into a clear, structured report
-4. Save the report using save_report
-5. Tell the user where the report was saved
-
-Always cite sources in your report. Be thorough but concise."""
-
+    print(f"planning queries for: {topic}")
+    response = client.messages.create(
+        model= MODEL,
+        max_tokens=512,
+        messages = [{
+            "role":"user",
+            "content":DECOMPOSITION_PROMPT.format(topic=topic)
+        }]
+    )
+    text = response.content[0].text.strip()
+    queries = json.loads(text)
+    print(f"Sub-queries: {queries}")
+    return queries
 
 def run_agent(user_query: str, max_iterations: int = 10) -> str:
     """
@@ -51,8 +53,13 @@ def run_agent(user_query: str, max_iterations: int = 10) -> str:
     print(f"AGENT STARTING: {user_query}")
     print(f"{'='*60}\n")
 
+    #Plan sub-queries first 
+    sub_queries = query_planner(user_query)
+    combined = "\n".join(f"- {q}" for q in sub_queries)
+    enriched_query = f"Research topic: {user_query}\n\nPlease search and answer these sub-queries:\n{combined}"
+
     messages = [
-        {"role": "user", "content": user_query}
+        {"role": "user", "content": enriched_query}
     ]
 
     iteration = 0
