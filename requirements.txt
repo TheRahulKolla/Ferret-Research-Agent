@@ -1,3 +1,5 @@
 anthropic
 duckduckgo-search
+ddgs
 python-dotenv
+python-docx
