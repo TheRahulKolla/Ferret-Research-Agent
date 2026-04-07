@@ -1,22 +1,25 @@
 # Ferret Research Agent
 
-An autonomous AI research agent that searches the web, synthesizes information, and saves structured reports — all from a single command.
+An autonomous AI research agent that searches the web, synthesizes information, and saves structured `.docx` reports — all from a single command.
 
 ## How it works
 
 Uses the **ReAct loop** (Reason → Act → Observe → repeat):
 1. You give it a research topic
-2. It breaks it into focused search queries
-3. Searches the web using DuckDuckGo
-4. Synthesizes results into a structured report
-5. Saves the report with sources to the `reports/` folder
+2. It decomposes it into 2-3 focused sub-queries
+3. Searches the web using DuckDuckGo for each sub-query
+4. Synthesizes results into a structured report with sections and sources
+5. Saves the report as a `.docx` Word file to the `reports/` folder
 
 ## Project Structure
 
 ```
-├── agent.py      # ReAct loop — sends messages to Claude
-├── tools.py      # Tools: web_search, save_report, read_file
-├── run.py        # Entry point — takes user input
+├── agent.py      # ReAct loop — async-safe, returns structured dict
+├── tools.py      # Tools: web_search, docx_writer, read_file, merge_results
+├── prompts.py    # System prompt and query decomposition prompt
+├── batch.py      # Batch mode — runs multiple topics in parallel
+├── run.py        # Entry point — single topic or batch mode
+├── topics.txt    # Sample topics file for batch mode
 ├── reports/      # Saved research reports (auto-created)
 └── .env          # API key (not committed)
 ```
@@ -37,7 +40,7 @@ venv\Scripts\activate
 
 **3. Install dependencies**
 ```bash
-pip install anthropic duckduckgo-search python-dotenv
+pip install -r requirements.txt
 ```
 
 **4. Add your API key**
@@ -54,12 +57,24 @@ Get your key at [console.anthropic.com](https://console.anthropic.com)
 # Interactive mode
 python run.py
 
-# Pass topic directly
+# Single topic
 python run.py "future of artificial intelligence"
+
+# Batch mode — research multiple topics in parallel
+python run.py --file topics.txt
+```
+
+### topics.txt format
+One topic per line:
+```
+Future of quantum computing
+Impact of climate change on agriculture
+Rise of electric vehicles
 ```
 
 ## Tech Stack
 
 - [Claude Haiku](https://anthropic.com) — AI brain via Anthropic API
-- [DuckDuckGo Search](https://pypi.org/project/duckduckgo-search/) — free web search, no API key needed
+- [DuckDuckGo Search](https://pypi.org/project/ddgs/) — free web search, no API key needed
+- [python-docx](https://python-docx.readthedocs.io/) — `.docx` report generation
 - Python 3.10+
