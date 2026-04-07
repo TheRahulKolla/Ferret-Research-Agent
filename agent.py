@@ -33,6 +33,11 @@ def query_planner (topic:str) -> list[str]:
         }]
     )
     text = response.content[0].text.strip()
+    if text.startswith("```"):
+        text = text.split("```")[1]
+    if text.startswith("json"):
+        text = text[4:]
+    text = text.strip()
     queries = json.loads(text)
     print(f"Sub-queries: {queries}")
     return queries
