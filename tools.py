@@ -1,14 +1,17 @@
 """
 3 tools the agent can use:
     1. web_search - DuckDuckGo
-    2. save_report - saves to local
+    2. Docx_writer - saves report as .docx
     3. read_file - reads saved files
+    4. merge_results - merge several result blocks 
 """
 
 import os
 from datetime import datetime
 from ddgs import DDGS
-
+from docx import Document
+from docx.shared import Pt, RGBColor
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 def web_search(query: str, max_results: int = 5) -> str:
     """Search the web using DuckDuckGo."""
@@ -32,31 +35,43 @@ def web_search(query: str, max_results: int = 5) -> str:
         return f"Search error: {str(e)}"
 
 
-def save_report(filename: str, content: str) -> str:
-    """Save a report to reports/ folder."""
+def docx_writer(filename: str, title: str, summary:str, sections: list, sources:list) -> str:
+    """Save report as a .docx file"""
+
     try:
-        os.makedirs("reports", exist_ok=True)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        safe_name = filename.replace(" ", "_").replace("/", "-")
-        filepath = f"reports/{safe_name}_{timestamp}.txt"
+        os.makedirs("reports",exist_ok= True)
+        timestamp = datetime.now().strftime("%m%d%Y_%H%M%S")
+        safe_name = filename.replace(" ", "_").replace("/","_")
+        filepath = f"reports/{safe_name}_{timestamp}.docx"
+
+        doc = Document()
+
+        #Title
+        title_para = doc.add_heading(title, level=0)
+        title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+        #Metadata
+        doc.add_paragraph(f"Generated: {datetime.now().strftime('%m%d%Y_%H%M%S')}")
+        doc.add_paragraph(f"Topic: {filename}")
+        doc.add_paragraph("-"* 60)
+
+        #summary
+        doc.add_heading("Summary", level=1)
+        doc.add_paragraph(summary)
+
+        #Sections
+        for section in sections:
+            doc.add_heading(section.get("heading", ""), level=2)
+            doc.add_paragraph(section.get("content", ""))
+
+        #Sources
+        doc.add_heading("Sources", level=1)
+        for i, source in enumerate (sources, 1):
+            doc.add_paragraph(f"[{i}] {source}")
         
-        structured = f"""
-========================================================================
-FERRET RESEARCH REPORT
-========================================================================
-Generated: {datetime.now().strftime("%m-%d-%Y %H:%M:%S")}
-Topic: {filename}
-========================================================================
-
-{content}
-
-========================================================================
-END OF REPORT
-========================================================================
-"""
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(structured)
-        return f"Report saved to: {filepath}"
+        doc.save(filepath)
+        return f" Report saved to: {filepath}"
+    
     except Exception as e:
         return f"Save error: {str(e)}"
 
@@ -92,15 +107,32 @@ TOOL_DEFINITIONS = [
         }
     },
     {
-        "name": "save_report",
-        "description": "Save the final report to a local file when research is complete.",
+        "name": "docx_writer",
+        "description": "Save the final report to a .docx word file when research is complete.",
         "input_schema": {
             "type": "object",
             "properties": {
                 "filename": {"type": "string", "description": "Report filename (no extension)"},
-                "content": {"type": "string", "description": "Full report content"}
+                "title": {"type":"string", "description": "Full report title"},
+                "summary": {"type": "string", "description": "Executive summary paragraph"},
+                "sections": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "heading": {"type": "string"},
+                            "content": {"type": "string"}
+                        }
+                    },
+                    "description": "List of sections with heading and content"
+                },
+                "sources": {
+                    "type": "array", 
+                    "items": {"type": "string"},
+                    "description": "Lsit of source URLs or citations"
+                    }
             },
-            "required": ["filename", "content"]
+            "required": ["filename", "title", "summary", "sections", "sources"]
         }
     },
     {
@@ -129,7 +161,7 @@ TOOL_DEFINITIONS = [
 
 TOOL_MAP = {
     "web_search": web_search,
-    "save_report": save_report,
+    "docx_writer": docx_writer,
     "read_file": read_file,
     "merge_results": merge_results
 }

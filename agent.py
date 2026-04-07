@@ -8,6 +8,8 @@ Implements the ReAct loop:
 
 import os
 import json
+import asyncio
+import time
 import anthropic
 from dotenv import load_dotenv
 from tools import TOOL_DEFINITIONS, execute_tool
@@ -42,7 +44,7 @@ def query_planner (topic:str) -> list[str]:
     print(f"Sub-queries: {queries}")
     return queries
 
-def run_agent(user_query: str, max_iterations: int = 10) -> str:
+def run_agent(user_query: str, max_iterations: int = 10) -> dict:
     """
     Run the ReAct agent loop.
 
@@ -51,8 +53,9 @@ def run_agent(user_query: str, max_iterations: int = 10) -> str:
         max_iterations: Safety limit to prevent infinite loops
 
     Returns:
-        The agent's final text response
+        dict with keys: topic, status, report, iterations, duration_sec
     """
+    start_time = time.time()
 
     print(f"\n{'='*60}")
     print(f"AGENT STARTING: {user_query}")
@@ -90,7 +93,13 @@ def run_agent(user_query: str, max_iterations: int = 10) -> str:
                 if hasattr(block, "text"):
                     final_text += block.text
             print(f"\nAGENT DONE after {iteration} iterations.")
-            return final_text
+            return {
+                "topic": user_query,
+                "status": "success",
+                "report": final_text,
+                "iterations": iteration,
+                "duration_sec": round(time.time() - start_time, 2)
+            }
 
         # --- CASE 2: Claude wants to use a tool ---
         if response.stop_reason == "tool_use":
@@ -130,4 +139,17 @@ def run_agent(user_query: str, max_iterations: int = 10) -> str:
             print(f"Unexpected stop reason: {response.stop_reason}")
             break
 
-    return "Agent reached maximum iterations without completing."
+    return {
+        "topic": user_query,
+        "status": "max_iterations_reached",
+        "report": "",
+        "iterations": max_iterations,
+        "duration_sec": round(time.time() - start_time, 2)
+    }
+
+async def async_run_agent(user_query: str, max_iterations: int=10) -> dict:
+    """
+    Async for run_agent - runs in thread to avoid blocking
+    """
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, run_agent, user_query, max_iterations)
