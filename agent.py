@@ -44,7 +44,7 @@ def query_planner (topic:str) -> list[str]:
     print(f"Sub-queries: {queries}")
     return queries
 
-def run_agent(user_query: str, max_iterations: int = 10) -> dict:
+def run_agent(user_query: str, max_iterations: int = 10, progress_callback=None) -> dict:
     """
     Run the ReAct agent loop.
 
@@ -135,6 +135,10 @@ def run_agent(user_query: str, max_iterations: int = 10) -> dict:
                 "content": tool_results
             })
 
+            # Emit progress after each tool use iteration
+            if progress_callback:
+                progress_callback(iteration, max_iterations)
+
         else:
             print(f"Unexpected stop reason: {response.stop_reason}")
             break
@@ -147,9 +151,7 @@ def run_agent(user_query: str, max_iterations: int = 10) -> dict:
         "duration_sec": round(time.time() - start_time, 2)
     }
 
-async def async_run_agent(user_query: str, max_iterations: int=10) -> dict:
-    """
-    Async for run_agent - runs in thread to avoid blocking
-    """
+async def async_run_agent(user_query: str, max_iterations: int = 10, progress_callback=None) -> dict:
+    """Async wrapper for run_agent — runs in thread pool to avoid blocking."""
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, run_agent, user_query, max_iterations)
+    return await loop.run_in_executor(None, run_agent, user_query, max_iterations, progress_callback)

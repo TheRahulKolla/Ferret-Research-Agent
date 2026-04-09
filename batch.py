@@ -5,10 +5,19 @@ Reads topic from topics.txt and runs one agent per topic parllely(upto 10)
 
 import asyncio
 import os
+import queue
+import threading
 from datetime import datetime
 from agent import async_run_agent
 
 MAX_CONCURRENT = 10
+
+#Global queue for SSE events
+sse_queue = queue.Queue()
+
+def emit(event: str, topic: str, data: dict = {}):
+    '''push a status event into the sse queue'''
+    sse_queue.put({"event": event, "topic": topic, "data": data})
 
 def read_topics (filepath:str) -> list[str]:
     """
@@ -24,13 +33,38 @@ async def run_batch(topics: list[str]) -> list[dict]:
 
     async def run_with_semaphore(topic:str) -> dict :
         async with semaphore:
+            emit("started",topic)
             print(f"[BATCH] Starting: {topic}")
-            result = await async_run_agent(topic)
-            print(f"[BATCH] Done: {topic} - status: {result['status']} ({result['duration_sec']}s)")
-            return result
-    
-    tasks = [run_with_semaphore(topic) for topic in topics]
-    return await asyncio.gather(*tasks)
+            try:
+                def progress_callback(iteration, max_iterations):
+                    pct = round((iteration / max_iterations) * 100)
+                    emit("progress", topic, {
+                        "iteration": iteration,
+                        "max_iterations": max_iterations,
+                        "pct": pct
+                    })
+
+                result = await async_run_agent(topic, progress_callback=progress_callback)
+                emit("done", topic, {
+                    "status": result["status"],
+                    "duration_sec": result["duration_sec"],
+                    "iterations": result["iterations"]
+                })
+                print(f"[BATCH] Done: {topic} - status: {result['status']} ({result['duration_sec']})s")
+                return result
+            except Exception as e:
+                emit("failed", topic, {"error": str(e)})
+                print(f"[BATCH] Failed: {topic} - {str(e)}")
+
+                return{
+                    "topic": topic,
+                    "status": "failed",
+                    "report": "",
+                    "iterations": 0,
+                    "duration_sec": 0
+                }
+    tasks = [run_with_semaphore (topic) for topic in topics]
+    return await asyncio.gather(*tasks) 
 
 def save_batch_summary(results: list[dict]) -> str:
     """ Save summary of all batches to a txt file"""
