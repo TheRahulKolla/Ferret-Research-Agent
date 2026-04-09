@@ -1,6 +1,5 @@
 anthropic
-duckduckgo-search
-ddgs
+tavily-python
 python-dotenv
 python-docx
 flask

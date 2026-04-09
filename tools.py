@@ -9,28 +9,27 @@ Tools the agent can use:
 
 import os
 from datetime import datetime
-from ddgs import DDGS
+from tavily import TavilyClient
 from docx import Document
 from docx.shared import Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 
 def web_search(query: str, max_results: int = 5) -> str:
-    """Search the web using DuckDuckGo."""
+    """Search the web using Tavily."""
     try:
-        results = []
-        with DDGS() as ddgs:
-            for r in ddgs.text(query, max_results=max_results):
-                results.append({
-                    "title": r.get("title", ""),
-                    "snippet": r.get("body", ""),
-                    "url": r.get("href", "")
-                })
+        api_key = os.environ.get("TAVILY_API_KEY")
+        if not api_key:
+            return "Search error: TAVILY_API_KEY not set."
+        client = TavilyClient(api_key=api_key)
+        response = client.search(query, max_results=max_results)
+        results = response.get("results", [])
         if not results:
             return "No results found."
         formatted = []
         for i, r in enumerate(results, 1):
-            formatted.append(f"[{i}] {r['title']}\n{r['snippet']}\nSource: {r['url']}")
+            snippet = r.get("content", "")[:200]  # FIX 2: truncate to 200 chars
+            formatted.append(f"[{i}] {r.get('title', '')}\n{snippet}\nSource: {r.get('url', '')}")
         return "\n\n".join(formatted)
     except Exception as e:
         return f"Search error: {str(e)}"
