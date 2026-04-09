@@ -8,27 +8,26 @@
 
 import os
 from datetime import datetime
-from ddgs import DDGS
+from tavily import TavilyClient
 from docx import Document
 from docx.shared import Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 def web_search(query: str, max_results: int = 5) -> str:
-    """Search the web using DuckDuckGo."""
+    """Search the web using Tavily."""
     try:
-        results = []
-        with DDGS() as ddgs:
-            for r in ddgs.text(query, max_results=max_results):
-                results.append({
-                    "title": r.get("title", ""),
-                    "snippet": r.get("body", ""),
-                    "url": r.get("href", "")
-                })
+        api_key = os.environ.get("TAVILY_API_KEY")
+        if not api_key:
+            return "Search error: TAVILY_API_KEY not set."
+        client = TavilyClient(api_key=api_key)
+        response = client.search(query, max_results=max_results)
+        results = response.get("results", [])
         if not results:
             return "No results found."
         formatted = []
         for i, r in enumerate(results, 1):
-            formatted.append(f"[{i}] {r['title']}\n{r['snippet']}\nSource: {r['url']}")
+            snippet = r.get("content", "")[:200]  # FIX 2: truncate to 200 chars
+            formatted.append(f"[{i}] {r.get('title', '')}\n{snippet}\nSource: {r.get('url', '')}")
         return "\n\n".join(formatted)
 
     except Exception as e:
@@ -93,7 +92,8 @@ def merge_results (results: list) -> str:
         merged.append(f"=== Search Result Block{i} === \n{result}")
     return "\n\n".join(merged)
    
-TOOL_DEFINITIONS = [
+# FIX 5: Core tools sent every call (search + write) — keeps schema tokens low
+CORE_TOOL_DEFINITIONS = [
     {
         "name": "web_search",
         "description": "Search the web for up-to-date information. Use when you need facts or data.",
@@ -113,7 +113,7 @@ TOOL_DEFINITIONS = [
             "type": "object",
             "properties": {
                 "filename": {"type": "string", "description": "Report filename (no extension)"},
-                "title": {"type":"string", "description": "Full report title"},
+                "title": {"type": "string", "description": "Full report title"},
                 "summary": {"type": "string", "description": "Executive summary paragraph"},
                 "sections": {
                     "type": "array",
@@ -127,14 +127,18 @@ TOOL_DEFINITIONS = [
                     "description": "List of sections with heading and content"
                 },
                 "sources": {
-                    "type": "array", 
+                    "type": "array",
                     "items": {"type": "string"},
-                    "description": "Lsit of source URLs or citations"
-                    }
+                    "description": "List of source URLs or citations"
+                }
             },
             "required": ["filename", "title", "summary", "sections", "sources"]
         }
-    },
+    }
+]
+
+# Utility tools — only included when needed (read_file, merge_results)
+UTILITY_TOOL_DEFINITIONS = [
     {
         "name": "read_file",
         "description": "Read content of a previously saved report.",
@@ -147,17 +151,20 @@ TOOL_DEFINITIONS = [
         }
     },
     {
-        "name":"merge_results",
+        "name": "merge_results",
         "description": "Merge multiple search result blocks into one formatted block before writing the report.",
-        "input_schema":{
-            "type":"object",
+        "input_schema": {
+            "type": "object",
             "properties": {
-                "results": {"type": "array", "items": {"type":"string"}, "description": "List of search strings to merge"}
+                "results": {"type": "array", "items": {"type": "string"}, "description": "List of search strings to merge"}
             },
-            "required":["results"]
+            "required": ["results"]
         }
     }
 ]
+
+# Full set for backwards compatibility
+TOOL_DEFINITIONS = CORE_TOOL_DEFINITIONS + UTILITY_TOOL_DEFINITIONS
 
 TOOL_MAP = {
     "web_search": web_search,
