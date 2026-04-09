@@ -12,7 +12,7 @@ import asyncio
 import time
 import anthropic
 from dotenv import load_dotenv
-from tools import TOOL_DEFINITIONS, execute_tool
+from tools import CORE_TOOL_DEFINITIONS, TOOL_DEFINITIONS, execute_tool
 from prompts import SYSTEM_PROMPT, DECOMPOSITION_PROMPT
 load_dotenv()
 
@@ -44,6 +44,13 @@ def query_planner (topic:str) -> list[str]:
     print(f"Sub-queries: {queries}")
     return queries
 
+def trim_history(messages: list, keep_last: int = 10) -> list:
+    """FIX 1: Keep first message (the enriched query) + last N to prevent context bloat."""
+    if len(messages) <= keep_last + 1:
+        return messages
+    return [messages[0]] + messages[-(keep_last):]
+
+
 def run_agent(user_query: str, max_iterations: int = 10, progress_callback=None) -> dict:
     """
     Run the ReAct agent loop.
@@ -61,10 +68,11 @@ def run_agent(user_query: str, max_iterations: int = 10, progress_callback=None)
     print(f"AGENT STARTING: {user_query}")
     print(f"{'='*60}\n")
 
-    #Plan sub-queries first 
+    #Plan sub-queries first
     sub_queries = query_planner(user_query)
     combined = "\n".join(f"- {q}" for q in sub_queries)
-    enriched_query = f"Research topic: {user_query}\n\nPlease search and answer these sub-queries:\n{combined}"
+    # FIX 6: removed duplicate raw topic — sub-queries already cover it
+    enriched_query = f"Please search and answer these sub-queries:\n{combined}"
 
     messages = [
         {"role": "user", "content": enriched_query}
@@ -76,15 +84,24 @@ def run_agent(user_query: str, max_iterations: int = 10, progress_callback=None)
         iteration += 1
         print(f"--- Iteration {iteration} ---")
 
+        # FIX 3: dynamic max_tokens — 512 for tool calls, 4096 only for final response
+        is_last_iteration = (iteration == max_iterations)
+        dynamic_max_tokens = 4096 if is_last_iteration else 512
+
+        trimmed = trim_history(messages)  # FIX 1: trim context before each call
+
         response = client.messages.create(
             model=MODEL,
-            max_tokens=4096,
+            max_tokens=dynamic_max_tokens,
             system=SYSTEM_PROMPT,
-            tools=TOOL_DEFINITIONS,
-            messages=messages
+            tools=CORE_TOOL_DEFINITIONS,  # FIX 5: send core tools only
+            messages=trimmed
         )
 
         print(f"Stop reason: {response.stop_reason}")
+
+        # sync trimmed back so next iteration appends to the trimmed version
+        messages = list(trimmed)
 
         # --- CASE 1: Claude is done, no more tool calls ---
         if response.stop_reason == "end_turn":
