@@ -12,7 +12,7 @@ import asyncio
 import time
 import anthropic
 from dotenv import load_dotenv
-from tools import TOOL_DEFINITIONS, execute_tool
+from tools import get_tool_definitions, execute_tool
 from prompts import SYSTEM_PROMPT, DECOMPOSITION_PROMPT
 load_dotenv()
 
@@ -44,7 +44,7 @@ def query_planner (topic:str) -> list[str]:
     print(f"Sub-queries: {queries}")
     return queries
 
-def run_agent(user_query: str, max_iterations: int = 10, progress_callback=None) -> dict:
+def run_agent(user_query: str, max_iterations: int = 10, progress_callback=None, output_format: str = "docx") -> dict:
     """
     Run the ReAct agent loop.
 
@@ -80,7 +80,7 @@ def run_agent(user_query: str, max_iterations: int = 10, progress_callback=None)
             model=MODEL,
             max_tokens=4096,
             system=SYSTEM_PROMPT,
-            tools=TOOL_DEFINITIONS,
+            tools=get_tool_definitions(output_format),
             messages=messages
         )
 
@@ -151,7 +151,9 @@ def run_agent(user_query: str, max_iterations: int = 10, progress_callback=None)
         "duration_sec": round(time.time() - start_time, 2)
     }
 
-async def async_run_agent(user_query: str, max_iterations: int = 10, progress_callback=None) -> dict:
+async def async_run_agent(user_query: str, max_iterations: int = 10, progress_callback=None, output_format: str = "docx") -> dict:
     """Async wrapper for run_agent — runs in thread pool to avoid blocking."""
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, run_agent, user_query, max_iterations, progress_callback)
+    return await loop.run_in_executor(
+        None, run_agent, user_query, max_iterations, progress_callback, output_format
+    )
