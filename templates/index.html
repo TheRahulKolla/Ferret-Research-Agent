@@ -40,6 +40,12 @@
                 Settings
             </a>
         </nav>
+        <div class="theme-toggle">
+            <button class="theme-btn" onclick="toggleTheme()" id="theme-btn">
+                <span id="theme-icon">🌙</span>
+                <span id="theme-label">Dark mode</span>
+            </button>
+        </div>
     </aside>
 
     <!-- MAIN -->
@@ -189,13 +195,108 @@
             <div class="topbar">
                 <div>
                     <h1 class="topbar-title">Settings</h1>
-                    <p class="topbar-sub">Configure your research agent</p>
+                    <p class="topbar-sub">API keys and agent configuration</p>
                 </div>
             </div>
             <div class="content">
-                <div class="card">
-                    <p class="field-label">Settings coming soon</p>
+
+                <!-- API Keys -->
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h2 class="settings-card-title">API keys</h2>
+                        <p class="settings-card-sub">Keys are saved to your local .env file — never sent anywhere else</p>
+                    </div>
+
+                    <div class="settings-field">
+                        <label class="field-label">Anthropic API key</label>
+                        <div class="key-row">
+                            <input type="password" id="anthropic-key" class="text-input" placeholder="sk-ant-...">
+                            <button class="btn-show" onclick="toggleShow('anthropic-key', this)">Show</button>
+                            <button class="btn-primary" onclick="saveKey('anthropic')">Save</button>
+                        </div>
+                        <div id="anthropic-status" class="key-status" style="display:none"></div>
+                    </div>
+
+                    <div class="settings-divider"></div>
+
+                    <div class="settings-field">
+                        <label class="field-label">Tavily API key</label>
+                        <div class="key-row">
+                            <input type="password" id="tavily-key" class="text-input" placeholder="tvly-...">
+                            <button class="btn-show" onclick="toggleShow('tavily-key', this)">Show</button>
+                            <button class="btn-primary" onclick="saveKey('tavily')">Save</button>
+                        </div>
+                        <div id="tavily-status" class="key-status" style="display:none"></div>
+                    </div>
                 </div>
+
+                <!-- Agent Configuration -->
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h2 class="settings-card-title">Agent configuration</h2>
+                        <p class="settings-card-sub">Tune how the research agent behaves</p>
+                    </div>
+
+                    <div class="settings-row">
+                        <div>
+                            <p class="settings-row-title">Max sub-queries per topic</p>
+                            <p class="settings-row-sub">How many searches Ferret runs per topic</p>
+                        </div>
+                        <div class="counter">
+                            <button class="counter-btn" onclick="adjustCounter('subqueries', -1)">−</button>
+                            <span class="counter-val" id="subqueries-val">3</span>
+                            <button class="counter-btn" onclick="adjustCounter('subqueries', 1)">+</button>
+                        </div>
+                    </div>
+
+                    <div class="settings-divider"></div>
+
+                    <div class="settings-row">
+                        <div>
+                            <p class="settings-row-title">Max iterations per agent</p>
+                            <p class="settings-row-sub">How many ReAct loop steps before stopping</p>
+                        </div>
+                        <div class="counter">
+                            <button class="counter-btn" onclick="adjustCounter('iterations', -1)">−</button>
+                            <span class="counter-val" id="iterations-val">10</span>
+                            <button class="counter-btn" onclick="adjustCounter('iterations', 1)">+</button>
+                        </div>
+                    </div>
+
+                    <div class="settings-divider"></div>
+
+                    <div class="settings-row">
+                        <div>
+                            <p class="settings-row-title">Max concurrent topics</p>
+                            <p class="settings-row-sub">How many topics run in parallel during batch</p>
+                        </div>
+                        <div class="counter">
+                            <button class="counter-btn" onclick="adjustCounter('concurrent', -1)">−</button>
+                            <span class="counter-val" id="concurrent-val">10</span>
+                            <button class="counter-btn" onclick="adjustCounter('concurrent', 1)">+</button>
+                        </div>
+                    </div>
+
+                    <div class="settings-save-row">
+                        <button class="btn-primary" onclick="saveConfig()">Save configuration</button>
+                        <span id="config-status" class="config-status"></span>
+                    </div>
+                </div>
+
+                <!-- Danger Zone -->
+                <div class="settings-card danger-card">
+                    <div class="settings-card-header">
+                        <h2 class="settings-card-title danger-title">Danger zone</h2>
+                    </div>
+                    <div class="settings-row">
+                        <div>
+                            <p class="settings-row-title">Clear all reports</p>
+                            <p class="settings-row-sub">Permanently delete all .docx files in reports/</p>
+                        </div>
+                        <button class="btn-danger" onclick="clearReports()">Clear reports</button>
+                    </div>
+                </div>
+
             </div>
         </div>
 
