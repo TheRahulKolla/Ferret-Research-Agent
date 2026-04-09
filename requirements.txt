@@ -3,3 +3,4 @@ duckduckgo-search
 ddgs
 python-dotenv
 python-docx
+flask

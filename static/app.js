@@ -1,3 +1,24 @@
+// ── Theme toggle ──────────────────────────────────────────────────
+function toggleTheme() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    document.getElementById('theme-icon').textContent  = isDark ? '🌙' : '☀️';
+    document.getElementById('theme-label').textContent = isDark ? 'Dark mode' : 'Light mode';
+    localStorage.setItem('theme', isDark ? 'light' : 'dark');
+}
+
+// Load saved theme
+(function() {
+    const saved = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', saved);
+    if (saved === 'dark') {
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('theme-icon').textContent  = '☀️';
+            document.getElementById('theme-label').textContent = 'Light mode';
+        });
+    }
+})();
+
 // ── Screen switching ──────────────────────────────────────────────
 function showScreen(name, el) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -263,5 +284,91 @@ function closePreview(e) {
     }
 }
 
+// ── Settings ──────────────────────────────────────────────────────
+const counterLimits = { subqueries: [1, 5], iterations: [3, 20], concurrent: [1, 10] };
+
+function adjustCounter(id, delta) {
+    const el = document.getElementById(id + '-val');
+    const [min, max] = counterLimits[id];
+    const newVal = Math.min(max, Math.max(min, parseInt(el.textContent) + delta));
+    el.textContent = newVal;
+    el.style.transform = 'scale(1.3)';
+    setTimeout(() => el.style.transform = 'scale(1)', 150);
+}
+
+function toggleShow(inputId, btn) {
+    const input = document.getElementById(inputId);
+    const isHidden = input.type === 'password';
+    input.type = isHidden ? 'text' : 'password';
+    btn.textContent = isHidden ? 'Hide' : 'Show';
+}
+
+function saveKey(provider) {
+    const key = document.getElementById(provider + '-key').value.trim();
+    const statusEl = document.getElementById(provider + '-status');
+    if (!key) {
+        showKeyStatus(statusEl, 'error', 'Please enter a key');
+        return;
+    }
+    fetch('/save-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider, key })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) showKeyStatus(statusEl, 'error', data.error);
+        else showKeyStatus(statusEl, 'success', 'Key saved · validated successfully');
+    })
+    .catch(() => showKeyStatus(statusEl, 'error', 'Failed to save key'));
+}
+
+function showKeyStatus(el, type, msg) {
+    el.className = 'key-status ' + type;
+    el.textContent = msg;
+    el.style.display = 'flex';
+}
+
+function saveConfig() {
+    const config = {
+        max_subqueries: parseInt(document.getElementById('subqueries-val').textContent),
+        max_iterations: parseInt(document.getElementById('iterations-val').textContent),
+        max_concurrent: parseInt(document.getElementById('concurrent-val').textContent)
+    };
+    fetch('/save-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config)
+    })
+    .then(r => r.json())
+    .then(data => {
+        const el = document.getElementById('config-status');
+        el.textContent = data.error ? '✗ ' + data.error : '✓ Configuration saved';
+        el.className = 'config-status show';
+        setTimeout(() => el.classList.remove('show'), 2500);
+    });
+}
+
+function clearReports() {
+    if (!confirm('Delete all reports? This cannot be undone.')) return;
+    fetch('/clear-reports', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => alert(data.message || data.error));
+}
+
+// Load saved settings on page load
+function loadSettings() {
+    fetch('/get-settings')
+        .then(r => r.json())
+        .then(data => {
+            if (data.max_subqueries) document.getElementById('subqueries-val').textContent = data.max_subqueries;
+            if (data.max_iterations) document.getElementById('iterations-val').textContent = data.max_iterations;
+            if (data.max_concurrent) document.getElementById('concurrent-val').textContent = data.max_concurrent;
+            if (data.has_anthropic)  showKeyStatus(document.getElementById('anthropic-status'), 'success', 'Key saved · validated successfully');
+            if (data.has_tavily)     showKeyStatus(document.getElementById('tavily-status'), 'success', 'Key saved · validated successfully');
+        });
+}
+
 // Init
 document.getElementById('reports-date') && loadReports();
+loadSettings();
