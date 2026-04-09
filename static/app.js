@@ -31,9 +31,18 @@ function showScreen(name, el) {
 // ── Upload mode toggle ────────────────────────────────────────────
 function setMode(mode) {
     document.querySelectorAll('.mode').forEach(m => m.classList.remove('active'));
-    document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('mode-' + mode).classList.add('active');
-    document.getElementById('toggle-' + mode).classList.add('active');
+    document.getElementById('toggle-single').classList.toggle('active', mode === 'single');
+    document.getElementById('toggle-batch').classList.toggle('active', mode === 'batch');
+}
+
+// ── Output format toggle ──────────────────────────────────────────
+let selectedFormat = 'docx';
+
+function setFormat(fmt) {
+    selectedFormat = fmt;
+    document.getElementById('fmt-docx').classList.toggle('active', fmt === 'docx');
+    document.getElementById('fmt-txt').classList.toggle('active', fmt === 'txt');
 }
 
 // ── Drag & drop ───────────────────────────────────────────────────
@@ -110,6 +119,7 @@ function uploadTopics(topics) {
     const blob = new Blob([topics.join('\n')], { type: 'text/plain' });
     const formData = new FormData();
     formData.append('file', blob, 'topics.txt');
+    formData.append('format', selectedFormat);
 
     fetch('/upload', { method: 'POST', body: formData })
         .then(r => r.json())
@@ -216,6 +226,13 @@ function listenSSE() {
         if (ev.event === 'batch_complete') {
             es.close();
             loadReports();
+            const failed = ev.data.failed || [];
+            if (failed.length) {
+                const log = document.getElementById('failure-log');
+                const list = document.getElementById('failure-list');
+                list.innerHTML = failed.map(t => `<li>${t}</li>`).join('');
+                log.style.display = 'block';
+            }
         }
     };
 }
@@ -238,8 +255,16 @@ function loadReports() {
             }
 
             tbody.innerHTML = data.reports.map(f => {
-                const parts = f.replace('.docx', '').split('_');
+                const isTxt = f.endsWith('.txt');
+                const base = f.replace('.docx', '').replace('.txt', '');
+                const parts = base.split('_');
                 const dateStr = parts.slice(-2).join('_');
+                const fmtPill = isTxt
+                    ? `<span class="pill-docx" style="background:#F3F4F6;color:#6B7280">.txt</span>`
+                    : `<span class="pill-docx">.docx</span>`;
+                const previewBtn = isTxt
+                    ? `<button class="btn-outline" style="font-size:0.8rem;padding:0.35rem 0.8rem" onclick="openPreview('${f}')">Preview</button>`
+                    : `<button class="btn-outline" style="font-size:0.8rem;padding:0.35rem 0.8rem" onclick="openPreview('${f}')">Preview</button>`;
                 return `
                 <tr>
                     <td>
@@ -250,11 +275,11 @@ function loadReports() {
                     </td>
                     <td style="color:#6B7280;font-size:0.82rem">${dateStr}</td>
                     <td style="color:#6B7280;font-size:0.82rem">—</td>
-                    <td><span class="pill-docx">.docx</span></td>
+                    <td>${fmtPill}</td>
                     <td>
                         <div class="table-actions">
                             <a href="/download/${f}" download class="btn-primary" style="font-size:0.8rem;padding:0.35rem 0.8rem;text-decoration:none">Download</a>
-                            <button class="btn-outline" style="font-size:0.8rem;padding:0.35rem 0.8rem" onclick="openPreview('${f}')">Preview</button>
+                            ${previewBtn}
                         </div>
                     </td>
                 </tr>`;
@@ -263,7 +288,7 @@ function loadReports() {
 }
 
 function downloadAll() {
-    alert('Download all as .zip coming soon.');
+    window.location.href = '/download-all';
 }
 
 // ── Preview modal ─────────────────────────────────────────────────

@@ -251,7 +251,9 @@ body {
 .card:hover { box-shadow: var(--shadow); }
 
 /* ── Toggle ──────────────────────────────────────────────────────── */
-.toggle-wrap { margin-bottom: 1.5rem; }
+.toggle-wrap { margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.format-toggle { display: flex; align-items: center; gap: 0.5rem; }
+.format-label { font-size: 0.8rem; color: var(--text3); font-weight: 500; white-space: nowrap; }
 
 .toggle-pill {
     display: inline-flex;
@@ -701,6 +703,30 @@ body {
 }
 
 .table-actions { display: flex; gap: 0.5rem; }
+
+/* ── Failure log ─────────────────────────────────────────────────── */
+.failure-log {
+    margin-top: 1.25rem;
+    background: var(--red-light);
+    border: 1px solid #FECACA;
+    border-radius: var(--radius-sm);
+    padding: 1rem 1.25rem;
+}
+.failure-log-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--red);
+    margin-bottom: 0.5rem;
+}
+.failure-log ul {
+    margin: 0;
+    padding-left: 1.25rem;
+}
+.failure-log ul li {
+    font-size: 0.82rem;
+    color: var(--red);
+    margin-bottom: 0.2rem;
+}
 
 /* ── Empty state ─────────────────────────────────────────────────── */
 .empty-msg {

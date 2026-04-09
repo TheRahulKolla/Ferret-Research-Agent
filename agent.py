@@ -12,7 +12,7 @@ import asyncio
 import time
 import anthropic
 from dotenv import load_dotenv
-from tools import CORE_TOOL_DEFINITIONS, TOOL_DEFINITIONS, execute_tool
+from tools import get_tool_definitions, execute_tool
 from prompts import SYSTEM_PROMPT, DECOMPOSITION_PROMPT
 load_dotenv()
 
@@ -44,14 +44,7 @@ def query_planner (topic:str) -> list[str]:
     print(f"Sub-queries: {queries}")
     return queries
 
-def trim_history(messages: list, keep_last: int = 10) -> list:
-    """FIX 1: Keep first message (the enriched query) + last N to prevent context bloat."""
-    if len(messages) <= keep_last + 1:
-        return messages
-    return [messages[0]] + messages[-(keep_last):]
-
-
-def run_agent(user_query: str, max_iterations: int = 10, progress_callback=None) -> dict:
+def run_agent(user_query: str, max_iterations: int = 10, progress_callback=None, output_format: str = "docx") -> dict:
     """
     Run the ReAct agent loop.
 
@@ -94,8 +87,8 @@ def run_agent(user_query: str, max_iterations: int = 10, progress_callback=None)
             model=MODEL,
             max_tokens=dynamic_max_tokens,
             system=SYSTEM_PROMPT,
-            tools=CORE_TOOL_DEFINITIONS,  # FIX 5: send core tools only
-            messages=trimmed
+            tools=get_tool_definitions(output_format),
+            messages=messages
         )
 
         print(f"Stop reason: {response.stop_reason}")
@@ -168,7 +161,9 @@ def run_agent(user_query: str, max_iterations: int = 10, progress_callback=None)
         "duration_sec": round(time.time() - start_time, 2)
     }
 
-async def async_run_agent(user_query: str, max_iterations: int = 10, progress_callback=None) -> dict:
+async def async_run_agent(user_query: str, max_iterations: int = 10, progress_callback=None, output_format: str = "docx") -> dict:
     """Async wrapper for run_agent — runs in thread pool to avoid blocking."""
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, run_agent, user_query, max_iterations, progress_callback)
+    return await loop.run_in_executor(
+        None, run_agent, user_query, max_iterations, progress_callback, output_format
+    )
