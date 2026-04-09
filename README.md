@@ -83,7 +83,7 @@ TAVILY_API_KEY=tvly-...
 - Anthropic key: [console.anthropic.com](https://console.anthropic.com)
 - Tavily key: [tavily.com](https://tavily.com) (free tier available)
 
-Or add them directly from the Settings screen in the web UI.
+Or add them directly from the **Settings** screen in the web UI.
 
 ---
 
