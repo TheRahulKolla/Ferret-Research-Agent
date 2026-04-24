@@ -44,6 +44,13 @@ def query_planner (topic:str) -> list[str]:
     print(f"Sub-queries: {queries}")
     return queries
 
+def trim_history(messages: list, keep_last: int = 10) -> list:
+    """FIX 1: Keep first message (the enriched query) + last N to prevent context bloat."""
+    if len(messages) <= keep_last + 1:
+        return messages
+    return [messages[0]] + messages[-(keep_last):]
+
+
 def run_agent(user_query: str, max_iterations: int = 10, progress_callback=None, output_format: str = "docx") -> dict:
     """
     Run the ReAct agent loop.
@@ -88,7 +95,7 @@ def run_agent(user_query: str, max_iterations: int = 10, progress_callback=None,
             max_tokens=dynamic_max_tokens,
             system=SYSTEM_PROMPT,
             tools=get_tool_definitions(output_format),
-            messages=messages
+            messages=trimmed
         )
 
         print(f"Stop reason: {response.stop_reason}")
