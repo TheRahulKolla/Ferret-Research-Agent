@@ -84,15 +84,11 @@ def run_agent(user_query: str, max_iterations: int = 10, progress_callback=None,
         iteration += 1
         print(f"--- Iteration {iteration} ---")
 
-        # FIX 3: dynamic max_tokens — 512 for tool calls, 4096 only for final response
-        is_last_iteration = (iteration == max_iterations)
-        dynamic_max_tokens = 4096 if is_last_iteration else 512
-
         trimmed = trim_history(messages)  # FIX 1: trim context before each call
 
         response = client.messages.create(
             model=MODEL,
-            max_tokens=dynamic_max_tokens,
+            max_tokens=4096,
             system=SYSTEM_PROMPT,
             tools=get_tool_definitions(output_format),
             messages=trimmed
